@@ -6,9 +6,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.location.Address;
-import android.location.Geocoder;
-import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
@@ -21,7 +18,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
@@ -31,25 +27,19 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity {
-    ////////2 seconds/////////
+public class MainActivity extends AppCompatActivity implements MyLocationListener.LocationListenerCallbacks {
+    ////////0 seconds/////////
     private static final long LOCATION_REFRESH_TIME = 0;
-    ///////1 metre///////////////
+    ///////0 metre///////////////
     private static final float LOCATION_REFRESH_DISTANCE = 0;
 
     private static final int LOCATION_PERMISSION = 3;
 
-    private TextView locationTxtView;
-    private Button checkInBtn;
-    private Button checkOutBtn;
-
-    private Boolean checkOut;
+    private TextView mLocationTxtView;
+    private Button mCheckInBtn;
+    private Button mCheckOutBtn;
     private LocationManager mLocationManager;
     private FirebaseFirestore mFirebaseFirestore = FirebaseFirestore.getInstance();
 
@@ -58,10 +48,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initWidgets();
-        if (!networkConnectionIsPresent()) {
-            return;
-        }
         setOnClickListeners();
+        networkConnectionIsPresent();
     }
 
     private void setUpLocationManager() {
@@ -103,20 +91,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initWidgets() {
-        locationTxtView = findViewById(R.id.locationTxtView);
-        checkInBtn = findViewById(R.id.checkInBtn);
-        checkOutBtn = findViewById(R.id.checkOutBtn);
+        mLocationTxtView = findViewById(R.id.locationTxtView);
+        mCheckInBtn = findViewById(R.id.checkInBtn);
+        mCheckOutBtn = findViewById(R.id.checkOutBtn);
 
     }
 
     private void setOnClickListeners() {
-        checkInBtn.setOnClickListener(new View.OnClickListener() {
+        mCheckInBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 checkInBtnClicked();
             }
         });
-        checkOutBtn.setOnClickListener(new View.OnClickListener() {
+        mCheckOutBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 checkOutBtnClicked();
@@ -127,65 +115,28 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void checkInBtnClicked() {
-        locationTxtView.setText("checked in ,fetching data...");
-        checkOut = false;
+        //change visibility of buttons
+        mCheckInBtn.setVisibility(View.GONE);
+        mCheckOutBtn.setVisibility(View.VISIBLE);
+        mLocationTxtView.setText("checked in ,fetching data...");
         setUpLocationManager();
     }
 
-    private final LocationListener mLocationListener = new LocationListener() {
-        @Override
-        public void onLocationChanged(final Location location) {
-            if (checkOut) {
-                Toast.makeText(MainActivity.this, "checked out", Toast.LENGTH_SHORT).show();
-                return;
-            }
-
-            Geocoder geocoder = new Geocoder(MainActivity.this, Locale.getDefault());
-            List<Address> addresses = null;
-            try {
-                addresses = geocoder.getFromLocation(location.getLatitude(), location.getLongitude(), 1);
-                String address = addresses.get(0).getAddressLine(0); // If any additional address line present than only, check with max available address lines by getMaxAddressLineIndex()
-                String city = addresses.get(0).getLocality();
-                String state = addresses.get(0).getAdminArea();
-                String country = addresses.get(0).getCountryName();
-                Map<String, Object> map = new HashMap<>();
-                map.put("address", address);
-                map.put("city", city);
-                map.put("country", country);
-                map.put("lat", location.getLatitude());
-                map.put("long", location.getLongitude());
-                //    map.put("timeStamp", FieldValue.serverTimestamp());
-
-                locationTxtView.setText(map.toString());
-
-                sendLocationDataToDatabase(map);
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+    private final LocationListener mLocationListener = new MyLocationListener(this);
 
 
-        }
+    @Override
+    public void setTextView(String text) {
+        mLocationTxtView.setText(text);
+    }
 
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
+    @Override
+    public void showToast(String text) {
+        Toast.makeText(this, text, Toast.LENGTH_SHORT).show();
 
-        }
+    }
 
-        @Override
-        public void onProviderEnabled(String provider) {
-            locationTxtView.setText("GPS Enable");
-
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-            locationTxtView.setText("GPS Disable");
-
-        }
-    };
-
-    private void sendLocationDataToDatabase(Map<String, Object> map) {
+    public void sendLocationDataToDatabase(Map<String, Object> map) {
 
         mFirebaseFirestore.collection("locations").add(map).addOnCompleteListener(new OnCompleteListener<DocumentReference>() {
             @Override
@@ -193,20 +144,18 @@ public class MainActivity extends AppCompatActivity {
                 if (task.isSuccessful()) {
                     //      Toast.makeText(MainActivity.this, "success", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(MainActivity.this, "error: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Error: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
                 }
             }
         });
     }
 
-    private boolean networkConnectionIsPresent() {
+
+    private void networkConnectionIsPresent() {
 
         if (!isOnline()) {
             createNetErrorDialog();
         }
-
-
-        return isOnline();
     }
 
     protected boolean isOnline() {
@@ -219,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    ////////dialog shows when internet connection is not available
     protected void createNetErrorDialog() {
 
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
@@ -241,18 +191,16 @@ public class MainActivity extends AppCompatActivity {
                             }
                         }
                 );
-        AlertDialog alert = builder.create();
-        alert.show();
+        builder.show();
     }
 
 
     private void checkOutBtnClicked() {
-        if (mLocationManager == null) {
-            return;
-        }
+        //change visibility of buttons
+        mCheckInBtn.setVisibility(View.VISIBLE);
+        mCheckOutBtn.setVisibility(View.GONE);
         mLocationManager.removeUpdates(mLocationListener);
-        locationTxtView.setText("checked out");
-        checkOut = true;
+        mLocationTxtView.setText("checked out");
     }
 
     @SuppressLint("MissingPermission")
@@ -266,9 +214,21 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void onDestroy() {
-        super.onDestroy();
-        mLocationManager.removeUpdates(mLocationListener);
+    @Override
+    public void onProviderDisabled() {
+        mCheckInBtn.setVisibility(View.VISIBLE);
+        mCheckOutBtn.setVisibility(View.GONE);
+        mLocationTxtView.setText("checked out");
+
     }
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (mLocationManager != null) {
+            mLocationManager.removeUpdates(mLocationListener);
+
+        }
+
+    }
 }
