@@ -37,8 +37,8 @@ public class MyLocationListener implements LocationListener {
             map.put("address", address);
             map.put("city", city);
             map.put("country", country);
-            map.put("lat", location.getLatitude());
-            map.put("long", location.getLongitude());
+            map.put("latitude", location.getLatitude());
+            map.put("longitude", location.getLongitude());
 
             listenerCallbacks.setTextView(map.toString());
             map.put("timeStamp", FieldValue.serverTimestamp());

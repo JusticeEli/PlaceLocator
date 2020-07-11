@@ -11,7 +11,10 @@ import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
+import android.os.Handler;
 import android.provider.Settings;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -20,18 +23,28 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.recyclerview.widget.ItemTouchHelper;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.firebase.ui.firestore.FirestoreRecyclerOptions;
+import com.firebase.ui.firestore.SnapshotParser;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.Query;
 
 import java.util.Map;
 
-public class MainActivity extends AppCompatActivity implements MyLocationListener.LocationListenerCallbacks {
+import es.dmoral.toasty.Toasty;
+
+public class MainActivity extends AppCompatActivity implements MyLocationListener.LocationListenerCallbacks, MainAdapter.ItemClicked {
     ////////0 seconds/////////
-    private static final long LOCATION_REFRESH_TIME = 0;
+    private static final long LOCATION_REFRESH_TIME = 5000;
     ///////0 metre///////////////
     private static final float LOCATION_REFRESH_DISTANCE = 0;
 
@@ -41,7 +54,15 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     private Button mCheckInBtn;
     private Button mCheckOutBtn;
     private LocationManager mLocationManager;
-    private FirebaseFirestore mFirebaseFirestore = FirebaseFirestore.getInstance();
+
+    private FirebaseFirestore firebaseFirestore = FirebaseFirestore.getInstance();
+    private FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
+
+    private MainAdapter adapter;
+    private RecyclerView recyclerView;
+
+    public static DocumentSnapshot documentSnapshot;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +71,42 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         initWidgets();
         setOnClickListeners();
         networkConnectionIsPresent();
+
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.deleteItem) {
+            deleteAllPlaces();
+        } else if (item.getItemId() == R.id.logoutItem) {
+            firebaseAuth.signOut();
+            startActivity(new Intent(this, LoginActivity.class));
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private void deleteAllPlaces() {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+                .setNegativeButton("cancel", null)
+                .setPositiveButton("delete all", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        deleteAll();
+                    }
+                }).setBackground(getDrawable(R.drawable.button_bg));
+        builder.show();
+    }
+
+    private void deleteAll() {
+        for (int i = 0; i < adapter.getSnapshots().size(); i++) {
+            adapter.getSnapshots().getSnapshot(i).getReference().delete().addOnCompleteListener(null);
+        }
     }
 
     private void setUpLocationManager() {
@@ -138,18 +195,18 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     public void sendLocationDataToDatabase(Map<String, Object> map) {
 
-        mFirebaseFirestore.collection("locations").add(map).addOnCompleteListener(new OnCompleteListener<DocumentReference>() {
+        firebaseFirestore.collection("all_locations").document(firebaseAuth.getUid()).collection("locations").add(map).addOnCompleteListener(new OnCompleteListener<DocumentReference>() {
             @Override
             public void onComplete(@NonNull Task<DocumentReference> task) {
                 if (task.isSuccessful()) {
-                    //      Toast.makeText(MainActivity.this, "success", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(MainActivity.this, "Error: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                    Toasty.success(MainActivity.this, "Error: " + task.getException().getMessage(), Toasty.LENGTH_SHORT).show();
+
                 }
             }
         });
-    }
 
+    }
 
     private void networkConnectionIsPresent() {
 
@@ -223,6 +280,75 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+
+
+        if (firebaseAuth.getCurrentUser() == null) {
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            finish();
+        }else {
+            setUpRecyclerView();
+            setSwipeListenerForItems();
+
+        }
+
+
+    }
+
+
+    private void setUpRecyclerView() {
+        recyclerView = findViewById(R.id.recyclerView);
+        Query query = firebaseFirestore.collection("all_locations").document(firebaseAuth.getUid()).collection("locations").orderBy("timeStamp", Query.Direction.DESCENDING);
+        FirestoreRecyclerOptions<LocationData> firestoreRecyclerOptions = new FirestoreRecyclerOptions.Builder<LocationData>().setQuery(query,
+                new SnapshotParser<LocationData>() {
+                    @NonNull
+                    @Override
+                    public LocationData parseSnapshot(@NonNull DocumentSnapshot snapshot) {
+
+                        LocationData locationData = snapshot.toObject(LocationData.class);
+                        locationData.setId(snapshot.getId());
+                        return locationData;
+                    }
+                }).setLifecycleOwner(MainActivity.this).build();
+
+
+        adapter = new MainAdapter(this, firestoreRecyclerOptions);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(adapter);
+
+    }
+
+    private void setSwipeListenerForItems() {
+        new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
+
+            @Override
+            public void onSwiped(@NonNull final RecyclerView.ViewHolder viewHolder, int direction) {
+                deletePlaceFromDatabase(viewHolder.getAdapterPosition());
+
+            }
+        }).attachToRecyclerView(recyclerView);
+    }
+
+    private void deletePlaceFromDatabase(int position) {
+        adapter.getSnapshots().getSnapshot(position).getReference().delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    Toasty.success(MainActivity.this, "deletion success", Toasty.LENGTH_SHORT).show();
+                } else {
+                    Toasty.error(MainActivity.this, "Error: " + task.getException().getMessage(), Toasty.LENGTH_SHORT).show();
+
+                }
+            }
+        });
+    }
+
+    @Override
     protected void onStop() {
         super.onStop();
         if (mLocationManager != null) {
@@ -230,5 +356,11 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
         }
 
+    }
+
+    @Override
+    public void itemClickedDocumentSnapshot(DocumentSnapshot document) {
+        documentSnapshot = document;
+        startActivity(new Intent(this, MapsActivity.class));
     }
 }
