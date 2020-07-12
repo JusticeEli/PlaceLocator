@@ -1,5 +1,6 @@
 package com.justice.placelocator;
 
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
@@ -30,8 +31,8 @@ public class LoginActivity extends AppCompatActivity {
     private Button loginBtn;
 
 
-    private FirebaseAuth firebaseAuth=FirebaseAuth.getInstance();
-
+    private FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
+    private ProgressDialog progressDialog;
 
 
     @Override
@@ -44,8 +45,8 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void setUpAnimation() {
-        RelativeLayout relativeLayout=findViewById(R.id.relativeLayout);
-        ScrollView scrollView=findViewById(R.id.scrollView);
+        RelativeLayout relativeLayout = findViewById(R.id.relativeLayout);
+        ScrollView scrollView = findViewById(R.id.scrollView);
 
 
         AnimationDrawable animationDrawable1 = (AnimationDrawable) relativeLayout.getBackground();
@@ -64,6 +65,7 @@ public class LoginActivity extends AppCompatActivity {
         super.onStart();
         if (firebaseAuth.getCurrentUser() != null) {
             startActivity(new Intent(LoginActivity.this, MainActivity.class));
+            overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
             finish();
 
         }
@@ -81,17 +83,24 @@ public class LoginActivity extends AppCompatActivity {
                 }
                 String email = emailEdtTxt.getText().toString().trim();
                 String password = passwordEdtTxt.getText().toString().trim();
+                progressDialog.setCancelable(false);
+                progressDialog.setTitle("Login user in...");
+                progressDialog.show();
                 firebaseAuth.signInWithEmailAndPassword(email, password).addOnCompleteListener(LoginActivity.this, new OnCompleteListener<AuthResult>() {
                     @Override
                     public void onComplete(@NonNull Task<AuthResult> task) {
                         if (task.isSuccessful()) {
-                            startActivity(new Intent(LoginActivity.this, MainActivity.class));
-                            finish();
+                            Intent intent=new Intent(LoginActivity.this, MainActivity.class);
+                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                            overridePendingTransition(R.anim.fade_in,R.anim.fade_out);
+
 
                         } else {
                             String error = task.getException().getMessage();
-                            Toasty.error(LoginActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
+                            Toasty.error(LoginActivity.this, "Error: " + error, Toast.LENGTH_LONG).show();
                         }
+                        progressDialog.dismiss();
                     }
                 });
 
@@ -116,7 +125,7 @@ public class LoginActivity extends AppCompatActivity {
                             Toasty.success(LoginActivity.this, "Password Reset Send", Toast.LENGTH_SHORT).show();
                         } else {
                             String error = task.getException().getMessage();
-                            Toasty.error(LoginActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
+                            Toasty.error(LoginActivity.this, "Error: " + error, Toast.LENGTH_LONG).show();
 
                         }
                     }
@@ -127,6 +136,7 @@ public class LoginActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 startActivity(new Intent(LoginActivity.this, RegisterActivity.class));
+                overridePendingTransition(R.anim.slide_in_from_left, R.anim.slide_out_to_right);
             }
         });
     }
@@ -144,9 +154,9 @@ public class LoginActivity extends AppCompatActivity {
         passwordEdtTxt = findViewById(R.id.passwordEdtTxt);
         resetPasswordTxtView = findViewById(R.id.resetPasswordEdtTxt);
         loginBtn = findViewById(R.id.loginBtn);
-
-
+        progressDialog = new ProgressDialog(this);
         registerTxtView = findViewById(R.id.registerTxtView);
+
 
 
     }

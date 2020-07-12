@@ -108,7 +108,6 @@
             android:id="@+id/loadingLinearLayout"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_below="@+id/header"
             android:gravity="center"
             android:orientation="vertical"
             android:padding="20dp"
@@ -125,7 +124,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
                 android:gravity="center_horizontal"
-                android:text="loading...." />
+                android:text="registering user...." />
         </LinearLayout>
 
 

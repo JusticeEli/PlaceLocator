@@ -54,7 +54,7 @@ public class MainAdapter extends FirestoreRecyclerAdapter<LocationData, MainAdap
     }
 
 
-    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener {
         private TextView placeTxtView, timeStampTxtView;
 
         public ViewHolder(@NonNull View v) {
@@ -62,15 +62,24 @@ public class MainAdapter extends FirestoreRecyclerAdapter<LocationData, MainAdap
             placeTxtView = v.findViewById(R.id.placeTxtView);
             timeStampTxtView = v.findViewById(R.id.timeStampTxtView);
             v.setOnClickListener(this);
+            v.setOnLongClickListener(this);
         }
 
         @Override
         public void onClick(View v) {
             itemClicked.itemClickedDocumentSnapshot(getSnapshots().getSnapshot(getAdapterPosition()));
         }
+
+        @Override
+        public boolean onLongClick(View v) {
+            itemClicked.itemLongClicked(getSnapshots().getSnapshot(getAdapterPosition()));
+            return true;
+        }
     }
 
     public interface ItemClicked {
         void itemClickedDocumentSnapshot(DocumentSnapshot document);
+        void itemLongClicked(DocumentSnapshot document);
+
     }
 }

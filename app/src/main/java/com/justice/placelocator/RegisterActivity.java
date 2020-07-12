@@ -20,8 +20,10 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 
+import es.dmoral.toasty.Toasty;
+
 public class RegisterActivity extends AppCompatActivity {
-    private EditText emailEdtTxt, passwordEdtTxt,confirmPasswordEdtTxt;
+    private EditText emailEdtTxt, passwordEdtTxt, confirmPasswordEdtTxt;
     private TextView loginTxtView;
     private Button registerBtn;
 
@@ -43,6 +45,7 @@ public class RegisterActivity extends AppCompatActivity {
         setOnClickListeners();
 
     }
+
     private void setUpAnimation() {
         RelativeLayout relativeLayout = findViewById(R.id.relativeLayout);
         ScrollView scrollView = findViewById(R.id.scrollView);
@@ -62,6 +65,7 @@ public class RegisterActivity extends AppCompatActivity {
         super.onStart();
         if (firebaseAuth.getCurrentUser() != null) {
             startActivity(new Intent(RegisterActivity.this, MainActivity.class));
+            overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
             finish();
 
         }
@@ -74,7 +78,7 @@ public class RegisterActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if (fieldsAreEmpty()) {
-                    Toast.makeText(RegisterActivity.this, "Please Fill All Fields", Toast.LENGTH_SHORT).show();
+                    Toasty.error(RegisterActivity.this, "Please Fill All Fields", Toast.LENGTH_SHORT).show();
                     return;
                 }
                 showProgress(true);
@@ -84,12 +88,14 @@ public class RegisterActivity extends AppCompatActivity {
                     @Override
                     public void onComplete(@NonNull Task<AuthResult> task) {
                         if (task.isSuccessful()) {
-                            startActivity(new Intent(RegisterActivity.this, MainActivity.class));
-                            finish();
+
+                            Intent intent = new Intent(RegisterActivity.this, MainActivity.class);
+                            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
 
                         } else {
                             String error = task.getException().getMessage();
-                            Toast.makeText(RegisterActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
+                            Toasty.error(RegisterActivity.this, "Error: " + error, Toast.LENGTH_LONG).show();
                         }
                         showProgress(false);
                     }
@@ -105,7 +111,9 @@ public class RegisterActivity extends AppCompatActivity {
         loginTxtView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(RegisterActivity.this,MainActivity.class));
+                startActivity(new Intent(RegisterActivity.this, LoginActivity.class));
+                overridePendingTransition(R.anim.slide_in_from_left, R.anim.slide_out_to_right);
+
             }
         });
 
@@ -138,7 +146,7 @@ public class RegisterActivity extends AppCompatActivity {
     private void initwidgets() {
         emailEdtTxt = findViewById(R.id.emailEdtTxt);
         passwordEdtTxt = findViewById(R.id.passwordEdtTxt);
-        confirmPasswordEdtTxt=findViewById(R.id.confirmPasswordEdtTxt);
+        confirmPasswordEdtTxt = findViewById(R.id.confirmPasswordEdtTxt);
         loginTxtView = findViewById(R.id.loginTxtView);
         registerBtn = findViewById(R.id.registerBtn);
 

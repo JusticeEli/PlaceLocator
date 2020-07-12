@@ -12,6 +12,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Process;
 import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -38,6 +39,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 
+import java.text.SimpleDateFormat;
 import java.util.Map;
 
 import es.dmoral.toasty.Toasty;
@@ -87,19 +89,22 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         } else if (item.getItemId() == R.id.logoutItem) {
             firebaseAuth.signOut();
             startActivity(new Intent(this, LoginActivity.class));
+            overridePendingTransition(R.anim.slide_in_from_left,R.anim.slide_out_to_right);
         }
         return super.onOptionsItemSelected(item);
     }
 
     private void deleteAllPlaces() {
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
-                .setNegativeButton("cancel", null)
-                .setPositiveButton("delete all", new DialogInterface.OnClickListener() {
+                .setIcon(R.drawable.ic_delete)
+                .setBackground(getDrawable(R.drawable.button_bg))
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete All", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         deleteAll();
                     }
-                }).setBackground(getDrawable(R.drawable.button_bg));
+                });
         builder.show();
     }
 
@@ -199,6 +204,8 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
             @Override
             public void onComplete(@NonNull Task<DocumentReference> task) {
                 if (task.isSuccessful()) {
+                    ///////scroll the recyclerview to the top
+                    recyclerView.smoothScrollToPosition(0);
                 } else {
                     Toasty.success(MainActivity.this, "Error: " + task.getException().getMessage(), Toasty.LENGTH_SHORT).show();
 
@@ -257,7 +264,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         mCheckInBtn.setVisibility(View.VISIBLE);
         mCheckOutBtn.setVisibility(View.GONE);
         mLocationManager.removeUpdates(mLocationListener);
-        mLocationTxtView.setText("checked out");
+        mLocationTxtView.setText("You are currently checked out ,press CHECK IN to fetch data");
     }
 
     @SuppressLint("MissingPermission")
@@ -275,7 +282,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     public void onProviderDisabled() {
         mCheckInBtn.setVisibility(View.VISIBLE);
         mCheckOutBtn.setVisibility(View.GONE);
-        mLocationTxtView.setText("checked out");
+        mLocationTxtView.setText("You are currently checked out ,press CHECK IN to fetch data");
 
     }
 
@@ -287,7 +294,8 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         if (firebaseAuth.getCurrentUser() == null) {
             startActivity(new Intent(MainActivity.this, LoginActivity.class));
             finish();
-        }else {
+        } else {
+            setTitle(firebaseAuth.getCurrentUser().getEmail());
             setUpRecyclerView();
             setSwipeListenerForItems();
 
@@ -362,5 +370,45 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     public void itemClickedDocumentSnapshot(DocumentSnapshot document) {
         documentSnapshot = document;
         startActivity(new Intent(this, MapsActivity.class));
+        overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
     }
+
+    @Override
+    public void itemLongClicked(DocumentSnapshot document) {
+        LocationData locationData = document.toObject(LocationData.class);
+
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("Address :" + locationData.getAddress());
+        stringBuilder.append("\n");
+        stringBuilder.append("City :" + locationData.getCity());
+        stringBuilder.append("\n");
+        stringBuilder.append("Country :" + locationData.getCountry());
+        stringBuilder.append("\n");
+        stringBuilder.append("Latitude :" + locationData.getLatitude());
+        stringBuilder.append("\n");
+        stringBuilder.append("Longitude :" + locationData.getLongitude());
+        stringBuilder.append("\n");
+
+        if (locationData.getTimeStamp() != null) {
+            String time = new SimpleDateFormat("HH:mm  dd/MM/yyyy").format(locationData.getTimeStamp());
+            String finalTime = "Date: " + time;
+            stringBuilder.append(finalTime);
+
+        }
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+                .setTitle(locationData.getAddress())
+                .setMessage(stringBuilder.toString())
+                .setBackground(getDrawable(R.drawable.button_bg))
+                .setPositiveButton("dismiss", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+        builder.show();
+
+    }
+
+
 }
