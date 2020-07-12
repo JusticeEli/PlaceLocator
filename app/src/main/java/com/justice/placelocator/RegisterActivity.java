@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.graphics.drawable.AnimationDrawable;
 import android.os.Bundle;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -40,7 +41,6 @@ public class RegisterActivity extends AppCompatActivity {
         setContentView(R.layout.activity_register);
         initwidgets();
         setUpAnimation();
-
         firebaseAuth = FirebaseAuth.getInstance();
         setOnClickListeners();
 
@@ -154,6 +154,12 @@ public class RegisterActivity extends AppCompatActivity {
         load = findViewById(R.id.loadingLinearLayout);
         loadTxtView = findViewById(R.id.loadTxtView);
         linearLayout = findViewById(R.id.linearLayout);
+        try {
+            InputMethodManager imm = (InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
 
 
     }

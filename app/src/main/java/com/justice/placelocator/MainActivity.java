@@ -2,6 +2,7 @@ package com.justice.placelocator;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -11,8 +12,6 @@ import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Process;
 import android.provider.Settings;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -23,6 +22,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -33,11 +33,12 @@ import com.firebase.ui.firestore.SnapshotParser;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.SetOptions;
 
 import java.text.SimpleDateFormat;
 import java.util.Map;
@@ -46,25 +47,27 @@ import es.dmoral.toasty.Toasty;
 
 public class MainActivity extends AppCompatActivity implements MyLocationListener.LocationListenerCallbacks, MainAdapter.ItemClicked {
     ////////0 seconds/////////
-    private static final long LOCATION_REFRESH_TIME = 5000;
+    private static final long LOCATION_REFRESH_TIME = 0;
     ///////0 metre///////////////
     private static final float LOCATION_REFRESH_DISTANCE = 0;
 
     private static final int LOCATION_PERMISSION = 3;
-
+    private CoordinatorLayout coordinatorLayout;
     private TextView mLocationTxtView;
-    private Button mCheckInBtn;
-    private Button mCheckOutBtn;
+    private Button checkInBtn;
+    private Button checkOutBtn;
     private LocationManager mLocationManager;
 
     private FirebaseFirestore firebaseFirestore = FirebaseFirestore.getInstance();
     private FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
 
-    private MainAdapter adapter;
-    private RecyclerView recyclerView;
 
     public static DocumentSnapshot documentSnapshot;
 
+    private LocationListener mLocationListener;
+
+    public static boolean checkIn;
+    private ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,35 +87,29 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == R.id.deleteItem) {
-            deleteAllPlaces();
-        } else if (item.getItemId() == R.id.logoutItem) {
-            firebaseAuth.signOut();
-            startActivity(new Intent(this, LoginActivity.class));
-            overridePendingTransition(R.anim.slide_in_from_left,R.anim.slide_out_to_right);
+
+        switch (item.getItemId()) {
+            case R.id.bookAppointmentItem:
+                startActivity(new Intent(this, BookAppointMentActivity.class));
+                break;
+            case R.id.appointmentItem:
+                startActivity(new Intent(this, AppointMentActivity.class));
+                break;
+            case R.id.logoutItem:
+                logoutUser();
+                break;
+
         }
-        return super.onOptionsItemSelected(item);
+        return true;
     }
 
-    private void deleteAllPlaces() {
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
-                .setIcon(R.drawable.ic_delete)
-                .setBackground(getDrawable(R.drawable.button_bg))
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Delete All", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        deleteAll();
-                    }
-                });
-        builder.show();
+    private void logoutUser() {
+        firebaseAuth.signOut();
+        startActivity(new Intent(this, LoginActivity.class));
+        overridePendingTransition(R.anim.slide_in_from_left, R.anim.slide_out_to_right);
+
     }
 
-    private void deleteAll() {
-        for (int i = 0; i < adapter.getSnapshots().size(); i++) {
-            adapter.getSnapshots().getSnapshot(i).getReference().delete().addOnCompleteListener(null);
-        }
-    }
 
     private void setUpLocationManager() {
         mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
@@ -122,6 +119,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, LOCATION_PERMISSION);
             return;
         }
+        mLocationListener = new MyLocationListener(this, mLocationManager);
         mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, LOCATION_REFRESH_TIME,
                 LOCATION_REFRESH_DISTANCE, mLocationListener);
 
@@ -153,22 +151,26 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     }
 
     private void initWidgets() {
+        coordinatorLayout = findViewById(R.id.coordinatorLayout);
         mLocationTxtView = findViewById(R.id.locationTxtView);
-        mCheckInBtn = findViewById(R.id.checkInBtn);
-        mCheckOutBtn = findViewById(R.id.checkOutBtn);
+        checkInBtn = findViewById(R.id.checkInBtn);
+        checkOutBtn = findViewById(R.id.checkOutBtn);
+        progressDialog = new ProgressDialog(this);
 
     }
 
     private void setOnClickListeners() {
-        mCheckInBtn.setOnClickListener(new View.OnClickListener() {
+        checkInBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                checkIn = true;
                 checkInBtnClicked();
             }
         });
-        mCheckOutBtn.setOnClickListener(new View.OnClickListener() {
+        checkOutBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                checkIn = false;
                 checkOutBtnClicked();
 
             }
@@ -178,13 +180,11 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     private void checkInBtnClicked() {
         //change visibility of buttons
-        mCheckInBtn.setVisibility(View.GONE);
-        mCheckOutBtn.setVisibility(View.VISIBLE);
-        mLocationTxtView.setText("checked in ,fetching data...");
+        checkInBtn.setVisibility(View.GONE);
+        checkOutBtn.setVisibility(View.VISIBLE);
+        mLocationTxtView.setText("please wait ,fetching current location...");
         setUpLocationManager();
     }
-
-    private final LocationListener mLocationListener = new MyLocationListener(this);
 
 
     @Override
@@ -200,14 +200,21 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     public void sendLocationDataToDatabase(Map<String, Object> map) {
 
-        firebaseFirestore.collection("all_locations").document(firebaseAuth.getUid()).collection("locations").add(map).addOnCompleteListener(new OnCompleteListener<DocumentReference>() {
+
+        firebaseFirestore.collection("appointments").document(firebaseAuth.getUid()).set(map, SetOptions.merge()).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
-            public void onComplete(@NonNull Task<DocumentReference> task) {
+            public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()) {
-                    ///////scroll the recyclerview to the top
-                    recyclerView.smoothScrollToPosition(0);
+                    if (checkIn) {
+                        Toasty.success(MainActivity.this, "checked in successfully: ", Toasty.LENGTH_SHORT).show();
+
+                    } else {
+                        Toasty.success(MainActivity.this, "checked out successfully: ", Toasty.LENGTH_SHORT).show();
+
+                    }
+
                 } else {
-                    Toasty.success(MainActivity.this, "Error: " + task.getException().getMessage(), Toasty.LENGTH_SHORT).show();
+                    Toasty.error(MainActivity.this, "Error: " + task.getException().getMessage(), Toasty.LENGTH_SHORT).show();
 
                 }
             }
@@ -261,10 +268,11 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     private void checkOutBtnClicked() {
         //change visibility of buttons
-        mCheckInBtn.setVisibility(View.VISIBLE);
-        mCheckOutBtn.setVisibility(View.GONE);
-        mLocationManager.removeUpdates(mLocationListener);
-        mLocationTxtView.setText("You are currently checked out ,press CHECK IN to fetch data");
+        mLocationTxtView.setText("please wait,as we check you out...");
+        checkInBtn.setVisibility(View.VISIBLE);
+        checkOutBtn.setVisibility(View.GONE);
+        setUpLocationManager();
+
     }
 
     @SuppressLint("MissingPermission")
@@ -280,9 +288,13 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     @Override
     public void onProviderDisabled() {
-        mCheckInBtn.setVisibility(View.VISIBLE);
-        mCheckOutBtn.setVisibility(View.GONE);
-        mLocationTxtView.setText("You are currently checked out ,press CHECK IN to fetch data");
+        checkInBtn.setVisibility(View.VISIBLE);
+        checkOutBtn.setVisibility(View.GONE);
+
+        if (MyLocationListener.currentLocation == null) {
+            return;
+        }
+        mLocationTxtView.setText("You are currently checked out ,\n Current Location is" + MyLocationListener.currentLocation.get("address").toString());
 
     }
 
@@ -296,72 +308,83 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
             finish();
         } else {
             setTitle(firebaseAuth.getCurrentUser().getEmail());
-            setUpRecyclerView();
-            setSwipeListenerForItems();
+            ///////////// checks if user has booked an appointment so we can direct him to book appointment first before checkIn
+            checkIfUserHasBookedAnAppointment();
 
         }
 
 
     }
 
-
-    private void setUpRecyclerView() {
-        recyclerView = findViewById(R.id.recyclerView);
-        Query query = firebaseFirestore.collection("all_locations").document(firebaseAuth.getUid()).collection("locations").orderBy("timeStamp", Query.Direction.DESCENDING);
-        FirestoreRecyclerOptions<LocationData> firestoreRecyclerOptions = new FirestoreRecyclerOptions.Builder<LocationData>().setQuery(query,
-                new SnapshotParser<LocationData>() {
-                    @NonNull
-                    @Override
-                    public LocationData parseSnapshot(@NonNull DocumentSnapshot snapshot) {
-
-                        LocationData locationData = snapshot.toObject(LocationData.class);
-                        locationData.setId(snapshot.getId());
-                        return locationData;
-                    }
-                }).setLifecycleOwner(MainActivity.this).build();
-
-
-        adapter = new MainAdapter(this, firestoreRecyclerOptions);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(adapter);
-
-    }
-
-    private void setSwipeListenerForItems() {
-        new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+    private void checkIfUserHasBookedAnAppointment() {
+        progressDialog.setTitle("fetching data...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+        firebaseFirestore.collection("appointments").document(FirebaseAuth.getInstance().getUid()).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
             @Override
-            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
-                return false;
-            }
-
-            @Override
-            public void onSwiped(@NonNull final RecyclerView.ViewHolder viewHolder, int direction) {
-                deletePlaceFromDatabase(viewHolder.getAdapterPosition());
-
-            }
-        }).attachToRecyclerView(recyclerView);
-    }
-
-    private void deletePlaceFromDatabase(int position) {
-        adapter.getSnapshots().getSnapshot(position).getReference().delete().addOnCompleteListener(new OnCompleteListener<Void>() {
-            @Override
-            public void onComplete(@NonNull Task<Void> task) {
+            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                 if (task.isSuccessful()) {
-                    Toasty.success(MainActivity.this, "deletion success", Toasty.LENGTH_SHORT).show();
-                } else {
-                    Toasty.error(MainActivity.this, "Error: " + task.getException().getMessage(), Toasty.LENGTH_SHORT).show();
+                    if (task.getResult().exists()) {
+                        checkIfUserHasCheckedIn(task.getResult());
+                    } else {
+                        Snackbar.make(coordinatorLayout, "Please book an appointment first before you check in", Snackbar.LENGTH_LONG)
+                                .addCallback(new Snackbar.Callback() {
+                                    @Override
+                                    public void onDismissed(Snackbar transientBottomBar, int event) {
+                                        super.onDismissed(transientBottomBar, event);
+                                        startActivity(new Intent(MainActivity.this, BookAppointMentActivity.class));
 
+                                    }
+                                }).show();
+                    }
+                } else {
+                    Toasty.error(MainActivity.this, "Error: " + task.getException().getMessage()).show();
                 }
+                progressDialog.dismiss();
+
             }
         });
+
+
     }
+
+    private void checkIfUserHasCheckedIn(DocumentSnapshot result) {
+        AppointmentData appointmentData = result.toObject(AppointmentData.class);
+        if (appointmentData.isCheckIn()) {
+            checkIn = true;
+            checkInBtn.setVisibility(View.GONE);
+            checkOutBtn.setVisibility(View.VISIBLE);
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append("You are currently checked in  for an appointment starting from ");
+            stringBuilder.append(appointmentData.getExpectedFromTime());
+            stringBuilder.append(" and ending at ");
+            stringBuilder.append(appointmentData.getExpectToTime());
+            stringBuilder.append(",\n you will be required to be at ");
+            stringBuilder.append(appointmentData.getDestinationLocation());
+            mLocationTxtView.setText(stringBuilder.toString());
+        } else {
+            checkIn = false;
+            checkInBtn.setVisibility(View.VISIBLE);
+            checkOutBtn.setVisibility(View.GONE);
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.append("You are currently checked out  for an appointment starting from ");
+            stringBuilder.append(appointmentData.getExpectedFromTime());
+            stringBuilder.append(" and ending at ");
+            stringBuilder.append(appointmentData.getExpectToTime());
+            if (appointmentData.getCheckInLocation() != null) {
+                stringBuilder.append(",\n you will be required to be at  ");
+                stringBuilder.append(appointmentData.getDestinationLocation());
+            }
+            mLocationTxtView.setText(stringBuilder.toString());
+        }
+    }
+
 
     @Override
     protected void onStop() {
         super.onStop();
         if (mLocationManager != null) {
             mLocationManager.removeUpdates(mLocationListener);
-
         }
 
     }

@@ -14,14 +14,14 @@ import com.google.android.gms.maps.model.MarkerOptions;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
-    private LocationData locationData;
+    private AppointmentData appointmentData;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-        locationData=MainActivity.documentSnapshot.toObject(LocationData.class);
+        appointmentData = MainActivity.documentSnapshot.toObject(AppointmentData.class);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -42,16 +42,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
 
         // Add a marker in Sydney and move the camera
-        LatLng latLng = new LatLng(locationData.getLatitude(), locationData.getLongitude());
-        String title=locationData.getAddress();
-        mMap.addMarker(new MarkerOptions().position(latLng).title("Marker in "+title));
+        LatLng latLng = new LatLng(appointmentData.getCheckInLocation().getLatitude(), appointmentData.getCheckInLocation().getLongitude());
+        String title = appointmentData.getCheckInLocation().getAddress();
+        mMap.addMarker(new MarkerOptions().position(latLng).title("Checked in at " + title));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
+
+        LatLng latLng2 = new LatLng(appointmentData.getCheckOutLocation().getLatitude(), appointmentData.getCheckOutLocation().getLongitude());
+        String title2 = appointmentData.getCheckOutLocation().getAddress();
+        mMap.addMarker(new MarkerOptions().position(latLng2).title("Checked out at " + title2));
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng2));
+
+
     }
 
     @Override
     public void finish() {
         super.finish();
-        overridePendingTransition(R.anim.fade_in,R.anim.fade_out);
+        overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
 
     }
 }

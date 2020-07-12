@@ -18,7 +18,9 @@
         android:roundIcon="@drawable/ic_icon"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name=".LoginActivity"></activity>
+        <activity android:name=".AppointMentActivity"></activity>
+        <activity android:name=".BookAppointMentActivity" />
+        <activity android:name=".LoginActivity" />
         <activity android:name=".RegisterActivity" />
         <!--
              The API key for Google Maps-based APIs is defined as a string resource.
