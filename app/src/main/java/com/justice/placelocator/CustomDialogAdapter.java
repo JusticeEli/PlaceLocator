@@ -5,6 +5,8 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -47,22 +49,23 @@ public class CustomDialogAdapter extends FirestoreRecyclerAdapter<AppointmentDat
         //   String time="2:34 pm";
         holder.emailTxtView.setText(model.getEmail());
         holder.destinationTxtView.setText(model.getDestinationLocation());
-
+        holder.approvedCheckbox.setChecked(model.isApproved());
     }
 
 
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.appointment_item, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.dialog_item, parent, false);
         ViewHolder viewHolder = new ViewHolder(view);
         return viewHolder;
 
     }
 
 
-    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
+    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener, CompoundButton.OnCheckedChangeListener, View.OnLongClickListener {
         private TextView emailTxtView, destinationTxtView, fromTxtView, toTxtView;
+        private CheckBox approvedCheckbox;
 
         public ViewHolder(@NonNull View v) {
             super(v);
@@ -70,8 +73,10 @@ public class CustomDialogAdapter extends FirestoreRecyclerAdapter<AppointmentDat
             destinationTxtView = v.findViewById(R.id.destinationTxtView);
             fromTxtView = v.findViewById(R.id.fromTxtView);
             toTxtView = v.findViewById(R.id.toTxtView);
-
+            approvedCheckbox = v.findViewById(R.id.approvedCheckbox);
             v.setOnClickListener(this);
+            v.setOnLongClickListener(this);
+            approvedCheckbox.setOnCheckedChangeListener(this);
         }
 
         @Override
@@ -80,10 +85,23 @@ public class CustomDialogAdapter extends FirestoreRecyclerAdapter<AppointmentDat
         }
 
 
+        @Override
+        public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+            itemClicked.approveAppointment(getSnapshots().getSnapshot(getAdapterPosition()), isChecked);
+
+        }
+
+        @Override
+        public boolean onLongClick(View v) {
+            itemClicked.itemOnDialogLongClicked(getSnapshots().getSnapshot(getAdapterPosition()));
+            return true;
+        }
     }
 
     public interface ItemClicked {
         void itemOnDialogClicked(DocumentSnapshot document);
+        void itemOnDialogLongClicked(DocumentSnapshot document);
+        void approveAppointment(DocumentSnapshot document, boolean approved);
 
     }
 }

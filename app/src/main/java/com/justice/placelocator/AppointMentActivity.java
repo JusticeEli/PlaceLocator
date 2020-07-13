@@ -25,6 +25,10 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.SetOptions;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import es.dmoral.toasty.Toasty;
 
@@ -43,6 +47,7 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_appoint_ment);
         setUpRecyclerView();
+        setTitle("Supervisor");
     }
 
     @Override
@@ -75,7 +80,9 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
 
     private void logoutUser() {
         firebaseAuth.signOut();
-        startActivity(new Intent(this, LoginActivity.class));
+        Intent intent=new Intent(this, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
         overridePendingTransition(R.anim.slide_in_from_left, R.anim.slide_out_to_right);
 
     }
@@ -107,7 +114,6 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
             startActivity(new Intent(AppointMentActivity.this, LoginActivity.class));
             finish();
         } else {
-            setTitle(firebaseAuth.getCurrentUser().getEmail());
             setUpRecyclerView();
             setSwipeListenerForItems();
 
@@ -247,6 +253,40 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
     }
 
     @Override
+    public void itemOnDialogLongClicked(DocumentSnapshot document) {
+
+
+        MainActivity.documentSnapshot = document;
+        startActivity(new Intent(this, MapsActivity.class));
+        overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+    }
+
+    @Override
+    public void approveAppointment(DocumentSnapshot document, final boolean approved) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("approved", approved);
+        document.getReference().set(approved, SetOptions.merge()).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    if (approved) {
+                        Toasty.success(AppointMentActivity.this, "Appointment Approved successfully").show();
+
+                    } else {
+                        Toasty.success(AppointMentActivity.this, "Appointment cancel").show();
+
+                    }
+
+                } else {
+                    Toasty.error(AppointMentActivity.this, "Error; " + task.getException().getMessage()).show();
+
+                }
+            }
+        });
+
+    }
+
+    @Override
     public void itemClickedDocumentSnapshot(DocumentSnapshot document) {
         Appointment appointment = document.toObject(Appointment.class);
 
@@ -263,7 +303,7 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
         View dialogView = (View) inflater.inflate(R.layout.custom_alert_dialog, null);
         builder.setView(dialogView);
         TextView headerTextView = dialogView.findViewById(R.id.headerTextView);
-        headerTextView.setText("hello my friend");
+        headerTextView.setText("Appointments booked by " + appointment.getEmail());
 
         RecyclerView rv = (RecyclerView) dialogView.findViewById(R.id.rv);
 
@@ -280,12 +320,25 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
                     }
                 }).setLifecycleOwner(AppointMentActivity.this).build();
 
-
-        CustomDialogAdapter dialogAdapter = new CustomDialogAdapter(AppointMentActivity.this, firestoreRecyclerOptions);
+        final CustomDialogAdapter dialogAdapter = new CustomDialogAdapter(AppointMentActivity.this, firestoreRecyclerOptions);
         rv.setLayoutManager(new LinearLayoutManager(this));
         rv.setAdapter(dialogAdapter);
 
+///////////////set up swipe listener ///// so that supervisor can delete the appointment by scrolling of the screen//////////
 
+        new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
+
+            @Override
+            public void onSwiped(@NonNull final RecyclerView.ViewHolder viewHolder, int direction) {
+                deleteAppointment(viewHolder.getAdapterPosition(), dialogAdapter);
+
+            }
+        }).attachToRecyclerView(rv);
+////////////////////////////////
         AlertDialog dialog = builder.create();
 
         dialog.show();
@@ -297,6 +350,21 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
          *         startActivity(new Intent(this, MapsActivity.class));
          *         overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
          */
+    }
+
+    private void deleteAppointment(int adapterPosition, CustomDialogAdapter dialogAdapter) {
+        dialogAdapter.getSnapshots().getSnapshot(adapterPosition).getReference().delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    Toasty.success(AppointMentActivity.this, "Appointment Deleted").show();
+
+                } else {
+                    Toasty.success(AppointMentActivity.this, "Error: " + task.getException().getMessage()).show();
+
+                }
+            }
+        });
     }
 
 

@@ -24,11 +24,13 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
+import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.firebase.ui.firestore.SnapshotParser;
+import com.google.android.gms.dynamic.IFragmentWrapper;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -55,12 +57,11 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     private static final int LOCATION_PERMISSION = 3;
     private CoordinatorLayout coordinatorLayout;
-    private TextView mLocationTxtView;
     private Button checkInBtn;
     private Button checkOutBtn;
     private RecyclerView recyclerView;
     private MainAdapter adapter;
-    private LocationManager mLocationManager;
+    private LocationManager locationManager;
 
     private FirebaseFirestore firebaseFirestore = FirebaseFirestore.getInstance();
     private FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
@@ -80,7 +81,20 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         initWidgets();
         setOnClickListeners();
         networkConnectionIsPresent();
+        checkIfUserHasLoggedIn_andHasBookedAnAppointment();
+        setUpSwipeListener();
+    }
 
+    private void checkIfUserHasLoggedIn_andHasBookedAnAppointment() {
+        if (firebaseAuth.getCurrentUser() == null) {
+            startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            finish();
+        } else {
+            setTitle(firebaseAuth.getCurrentUser().getEmail());
+            ///////////// checks if user has booked an appointment so we can direct him to book appointment first before checkIn
+            checkIfUserHasBookedAnAppointment();
+
+        }
     }
 
     @Override
@@ -109,28 +123,30 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     private void logoutUser() {
         firebaseAuth.signOut();
-        startActivity(new Intent(this, LoginActivity.class));
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
         overridePendingTransition(R.anim.slide_in_from_left, R.anim.slide_out_to_right);
 
     }
 
 
     private void setUpLocationManager() {
-        mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         seeIfGPSisEnabled();
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, LOCATION_PERMISSION);
             return;
         }
-        mLocationListener = new MyLocationListener(this, mLocationManager);
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, LOCATION_REFRESH_TIME,
+        mLocationListener = new MyLocationListener(this, locationManager);
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, LOCATION_REFRESH_TIME,
                 LOCATION_REFRESH_DISTANCE, mLocationListener);
 
     }
 
     private void seeIfGPSisEnabled() {
-        if (!mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+        if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
             buildAlertMessageNoGps();
 
         }
@@ -156,7 +172,6 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     private void initWidgets() {
         coordinatorLayout = findViewById(R.id.coordinatorLayout);
-        mLocationTxtView = findViewById(R.id.locationTxtView);
         checkInBtn = findViewById(R.id.checkInBtn);
         checkOutBtn = findViewById(R.id.checkOutBtn);
         progressDialog = new ProgressDialog(this);
@@ -186,14 +201,14 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         //change visibility of buttons
         checkInBtn.setVisibility(View.GONE);
         checkOutBtn.setVisibility(View.VISIBLE);
-        mLocationTxtView.setText("please wait ,fetching current location...");
+        showSnackBar("please wait ,fetching current location...");
         setUpLocationManager();
     }
 
 
     @Override
     public void setTextView(String text) {
-        mLocationTxtView.setText(text);
+        showSnackBar(text);
     }
 
     @Override
@@ -294,7 +309,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     private void checkOutBtnClicked() {
         //change visibility of buttons
-        mLocationTxtView.setText("please wait,as we check you out...");
+        showSnackBar("please wait,as we check you out...");
         checkInBtn.setVisibility(View.VISIBLE);
         checkOutBtn.setVisibility(View.GONE);
         setUpLocationManager();
@@ -306,7 +321,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[0] == PackageManager.PERMISSION_GRANTED && requestCode == LOCATION_PERMISSION) {
-            mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, LOCATION_REFRESH_TIME,
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, LOCATION_REFRESH_TIME,
                     LOCATION_REFRESH_DISTANCE, mLocationListener);
 
         }
@@ -320,7 +335,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         if (MyLocationListener.currentLocation == null) {
             return;
         }
-        mLocationTxtView.setText("You are currently checked out ,\n Current Location is" + MyLocationListener.currentLocation.get("address").toString());
+        showSnackBar("You are currently checked out ,\n Current Location is" + MyLocationListener.currentLocation.get("address").toString());
 
     }
 
@@ -328,16 +343,19 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     protected void onStart() {
         super.onStart();
 
-
-        if (firebaseAuth.getCurrentUser() == null) {
-            startActivity(new Intent(MainActivity.this, LoginActivity.class));
-            finish();
-        } else {
-            setTitle(firebaseAuth.getCurrentUser().getEmail());
-            ///////////// checks if user has booked an appointment so we can direct him to book appointment first before checkIn
-            checkIfUserHasBookedAnAppointment();
-
-        }
+//////previous code
+/**
+ *
+ *   if (firebaseAuth.getCurrentUser() == null) {
+ *             startActivity(new Intent(MainActivity.this, LoginActivity.class));
+ *             finish();
+ *         } else {
+ *             setTitle(firebaseAuth.getCurrentUser().getEmail());
+ *             ///////////// checks if user has booked an appointment so we can direct him to book appointment first before checkIn
+ *             checkIfUserHasBookedAnAppointment();
+ *
+ *         }
+ */
 
 
     }
@@ -412,7 +430,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
             stringBuilder.append(appointmentData.getExpectToTime());
             stringBuilder.append(",\n you will be required to be at ");
             stringBuilder.append(appointmentData.getDestinationLocation());
-            mLocationTxtView.setText(stringBuilder.toString());
+            showSnackBar(stringBuilder.toString());
         } else {
             checkIn = false;
             checkInBtn.setVisibility(View.VISIBLE);
@@ -426,7 +444,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
                 stringBuilder.append(",\n you will be required to be at  ");
                 stringBuilder.append(appointmentData.getDestinationLocation());
             }
-            mLocationTxtView.setText(stringBuilder.toString());
+            showSnackBar(stringBuilder.toString());
         }
     }
 
@@ -434,8 +452,8 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     @Override
     protected void onStop() {
         super.onStop();
-        if (mLocationManager != null) {
-            mLocationManager.removeUpdates(mLocationListener);
+        if (locationManager != null) {
+            locationManager.removeUpdates(mLocationListener);
         }
 
     }
@@ -445,6 +463,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         documentSnapshot = document;
         startActivity(new Intent(this, MapsActivity.class));
         overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+
     }
 
     @Override
@@ -512,7 +531,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
 
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
-                .setTitle(appointmentData.getEmail())
+                .setTitle("Status of " + appointmentData.getEmail())
                 .setMessage(stringBuilder.toString())
                 .setBackground(getDrawable(R.drawable.button_bg))
                 .setPositiveButton("dismiss", new DialogInterface.OnClickListener() {
@@ -525,5 +544,36 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     }
 
+    private void showSnackBar(String text) {
+        Snackbar.make(coordinatorLayout, text, Snackbar.LENGTH_LONG).show();
+    }
+
+    private void setUpSwipeListener() {
+        new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
+            @Override
+            public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
+                return false;
+            }
+
+            @Override
+            public void onSwiped(@NonNull final RecyclerView.ViewHolder viewHolder, int direction) {
+                deleteAppointmentFromDatabase(viewHolder.getAdapterPosition());
+
+            }
+        }).attachToRecyclerView(recyclerView);
+    }
+
+    private void deleteAppointmentFromDatabase(int adapterPosition) {
+        adapter.getSnapshots().getSnapshot(adapterPosition).getReference().delete().addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    Toasty.success(MainActivity.this, "deletion success").show();
+                } else {
+                    Toasty.error(MainActivity.this, "Error: "+task.getException().getMessage()).show();
+                }
+            }
+        });
+    }
 
 }

@@ -12,43 +12,91 @@
 
     >
 
-    <RelativeLayout
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@android:color/darker_gray"
+        android:orientation="vertical"
         android:padding="10dp">
 
-        <TextView
-            android:id="@+id/emailTxtView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="justice@gmail.com" />
 
-        <TextView
-            android:id="@+id/destinationTxtView"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Email: "
+                android:textColor="@color/colorAccent" />
+
+            <TextView
+                android:id="@+id/emailTxtView"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="3"
+                android:text="justice@gmail.com" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="From: "
+                android:textColor="@color/colorAccent" />
+
+            <TextView
+                android:id="@+id/fromTxtView"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:text=" 2:00pm" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Place: "
+                android:textColor="@color/colorAccent" />
+
+            <TextView
+                android:id="@+id/destinationTxtView"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="3"
+                android:text="Dandora phase 2" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="To: "
+                android:textColor="@color/colorAccent" />
+
+            <TextView
+                android:id="@+id/toTxtView"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="2"
+                android:text=" 12:00am" />
+
+        </LinearLayout>
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/approvedCheckbox"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@id/emailTxtView"
+            android:layout_gravity="center_horizontal"
             android:layout_marginTop="10dp"
-            android:text="Dandora phase 5" />
-
-        <TextView
-            android:id="@+id/fromTxtView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="120dp"
-            android:layout_toRightOf="@id/emailTxtView"
-            android:text="From: 2:00pm" />
-
-        <TextView
-            android:id="@+id/toTxtView"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/fromTxtView"
-            android:layout_marginLeft="120dp"
-            android:layout_marginTop="-2dp"
-            android:layout_toRightOf="@id/destinationTxtView"
-            android:text="To: 12:49pm" />
-
-    </RelativeLayout>
+            android:text="approved" />
+    </LinearLayout>
 </androidx.cardview.widget.CardView>

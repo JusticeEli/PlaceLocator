@@ -13,6 +13,7 @@ public class AppointmentData {
     private LocationData checkOutLocation;
     private String destinationLocation;
     private boolean checkIn;
+    private boolean approved;
 
     public AppointmentData(Date checkInTime, Date expectedFromTime, Date checkOutTime, Date expectToTime, LocationData checkInLocation, LocationData checkOutLocation, String destinationLocation) {
         this.checkInTime = checkInTime;
@@ -25,6 +26,14 @@ public class AppointmentData {
     }
 
     public AppointmentData() {
+    }
+
+    public boolean isApproved() {
+        return approved;
+    }
+
+    public void setApproved(boolean approved) {
+        this.approved = approved;
     }
 
     public boolean isCheckIn() {

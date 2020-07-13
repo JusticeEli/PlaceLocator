@@ -2,9 +2,11 @@ package com.justice.placelocator;
 
 
 import android.content.Context;
+import android.preference.TwoStatePreference;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -47,6 +49,7 @@ public class MainAdapter extends FirestoreRecyclerAdapter<AppointmentData, MainA
         //   String time="2:34 pm";
         holder.emailTxtView.setText(model.getEmail());
         holder.destinationTxtView.setText(model.getDestinationLocation());
+        holder.approvedCheckbox.setChecked(model.isApproved());
 
     }
 
@@ -62,6 +65,7 @@ public class MainAdapter extends FirestoreRecyclerAdapter<AppointmentData, MainA
 
 
     public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener {
+        public CheckBox approvedCheckbox;
         private TextView emailTxtView, destinationTxtView, fromTxtView, toTxtView;
 
         public ViewHolder(@NonNull View v) {
@@ -70,7 +74,8 @@ public class MainAdapter extends FirestoreRecyclerAdapter<AppointmentData, MainA
             destinationTxtView = v.findViewById(R.id.destinationTxtView);
             fromTxtView = v.findViewById(R.id.fromTxtView);
             toTxtView = v.findViewById(R.id.toTxtView);
-
+            approvedCheckbox = v.findViewById(R.id.approvedCheckbox);
+            approvedCheckbox.setEnabled(false);
             v.setOnClickListener(this);
             v.setOnLongClickListener(this);
         }
@@ -81,7 +86,7 @@ public class MainAdapter extends FirestoreRecyclerAdapter<AppointmentData, MainA
             AllData.currentLocation = documentSnapshot;
             v.setBackground(context.getDrawable(R.drawable.button_bg));
             itemClicked.checkIfUserHasCheckedIn(documentSnapshot);
-            //     itemClicked.itemClickedDocumentSnapshot(getSnapshots().getSnapshot(getAdapterPosition()));
+            itemClicked.itemClickedDocumentSnapshot(getSnapshots().getSnapshot(getAdapterPosition()));
         }
 
         @Override
