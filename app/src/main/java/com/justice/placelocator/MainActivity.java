@@ -24,7 +24,6 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
-import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -40,12 +39,15 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.SetOptions;
 
-import java.text.SimpleDateFormat;
 import java.util.Map;
 
 import es.dmoral.toasty.Toasty;
 
 public class MainActivity extends AppCompatActivity implements MyLocationListener.LocationListenerCallbacks, MainAdapter.ItemClicked {
+
+    public static final String APPOINTMENTS = "appointments";
+    public static final String PERSONAL_APPOINTMENTS = "personal_appointments";
+
     ////////0 seconds/////////
     private static final long LOCATION_REFRESH_TIME = 0;
     ///////0 metre///////////////
@@ -56,6 +58,8 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     private TextView mLocationTxtView;
     private Button checkInBtn;
     private Button checkOutBtn;
+    private RecyclerView recyclerView;
+    private MainAdapter adapter;
     private LocationManager mLocationManager;
 
     private FirebaseFirestore firebaseFirestore = FirebaseFirestore.getInstance();
@@ -199,9 +203,8 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     }
 
     public void sendLocationDataToDatabase(Map<String, Object> map) {
-
-
-        firebaseFirestore.collection("appointments").document(firebaseAuth.getUid()).set(map, SetOptions.merge()).addOnCompleteListener(new OnCompleteListener<Void>() {
+        AllData.currentLocation.getReference()
+                .set(map, SetOptions.merge()).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()) {
@@ -219,6 +222,29 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
                 }
             }
         });
+
+/////////////previous code///////////////////
+/**
+ *   firebaseFirestore.collection("appointments").document(firebaseAuth.getUid())
+ *         .set(map, SetOptions.merge()).addOnCompleteListener(new OnCompleteListener<Void>() {
+ *             @Override
+ *             public void onComplete(@NonNull Task<Void> task) {
+ *                 if (task.isSuccessful()) {
+ *                     if (checkIn) {
+ *                         Toasty.success(MainActivity.this, "checked in successfully: ", Toasty.LENGTH_SHORT).show();
+ *
+ *                     } else {
+ *                         Toasty.success(MainActivity.this, "checked out successfully: ", Toasty.LENGTH_SHORT).show();
+ *
+ *                     }
+ *
+ *                 } else {
+ *                     Toasty.error(MainActivity.this, "Error: " + task.getException().getMessage(), Toasty.LENGTH_SHORT).show();
+ *
+ *                 }
+ *             }
+ *         });
+ */
 
     }
 
@@ -320,12 +346,15 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         progressDialog.setTitle("fetching data...");
         progressDialog.setCancelable(false);
         progressDialog.show();
-        firebaseFirestore.collection("appointments").document(FirebaseAuth.getInstance().getUid()).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
+        firebaseFirestore.collection(APPOINTMENTS).document(FirebaseAuth.getInstance().getUid()).get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
             @Override
             public void onComplete(@NonNull Task<DocumentSnapshot> task) {
                 if (task.isSuccessful()) {
                     if (task.getResult().exists()) {
-                        checkIfUserHasCheckedIn(task.getResult());
+
+                        setUpRecyclerViewForPersonalAppointments();
+
+                        //      checkIfUserHasCheckedIn(task.getResult());
                     } else {
                         Snackbar.make(coordinatorLayout, "Please book an appointment first before you check in", Snackbar.LENGTH_LONG)
                                 .addCallback(new Snackbar.Callback() {
@@ -348,7 +377,29 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     }
 
-    private void checkIfUserHasCheckedIn(DocumentSnapshot result) {
+    private void setUpRecyclerViewForPersonalAppointments() {
+        recyclerView = findViewById(R.id.recyclerView);
+        Query query = firebaseFirestore.collection(APPOINTMENTS).document(firebaseAuth.getUid()).collection(PERSONAL_APPOINTMENTS).orderBy("expectedFromTime", Query.Direction.DESCENDING);
+        FirestoreRecyclerOptions<AppointmentData> firestoreRecyclerOptions = new FirestoreRecyclerOptions.Builder<AppointmentData>().setQuery(query,
+                new SnapshotParser<AppointmentData>() {
+                    @NonNull
+                    @Override
+                    public AppointmentData parseSnapshot(@NonNull DocumentSnapshot snapshot) {
+
+                        AppointmentData appointmentData = snapshot.toObject(AppointmentData.class);
+                        appointmentData.setId(snapshot.getId());
+                        return appointmentData;
+                    }
+                }).setLifecycleOwner(MainActivity.this).build();
+
+
+        adapter = new MainAdapter(this, firestoreRecyclerOptions);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(adapter);
+
+    }
+
+    public void checkIfUserHasCheckedIn(DocumentSnapshot result) {
         AppointmentData appointmentData = result.toObject(AppointmentData.class);
         if (appointmentData.isCheckIn()) {
             checkIn = true;
@@ -398,29 +449,70 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     @Override
     public void itemLongClicked(DocumentSnapshot document) {
-        LocationData locationData = document.toObject(LocationData.class);
+        AppointmentData appointmentData = document.toObject(AppointmentData.class);
 
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("Address :" + locationData.getAddress());
-        stringBuilder.append("\n");
-        stringBuilder.append("City :" + locationData.getCity());
-        stringBuilder.append("\n");
-        stringBuilder.append("Country :" + locationData.getCountry());
-        stringBuilder.append("\n");
-        stringBuilder.append("Latitude :" + locationData.getLatitude());
-        stringBuilder.append("\n");
-        stringBuilder.append("Longitude :" + locationData.getLongitude());
-        stringBuilder.append("\n");
+        if (appointmentData.getCheckInTime() == null) {
+            stringBuilder.append("CheckInTime : User has not checked in");
+            stringBuilder.append("\n");
+            stringBuilder.append("\n");
 
-        if (locationData.getTimeStamp() != null) {
-            String time = new SimpleDateFormat("HH:mm  dd/MM/yyyy").format(locationData.getTimeStamp());
-            String finalTime = "Date: " + time;
-            stringBuilder.append(finalTime);
+        } else {
+            stringBuilder.append("CheckedInTime :" + appointmentData.getCheckInTime());
+            stringBuilder.append("\n");
+            stringBuilder.append("\n");
 
         }
 
+        stringBuilder.append("ExpectedTime :" + appointmentData.getExpectedFromTime());
+        stringBuilder.append("\n");
+        stringBuilder.append("\n");
+
+        if (appointmentData.getCheckOutTime() == null) {
+            stringBuilder.append("CheckOutTime : User has not checked out");
+            stringBuilder.append("\n");
+            stringBuilder.append("\n");
+
+        } else {
+            stringBuilder.append("CheckOutTime :" + appointmentData.getCheckOutTime());
+            stringBuilder.append("\n");
+            stringBuilder.append("\n");
+
+        }
+
+        stringBuilder.append("expectTime :" + appointmentData.getExpectToTime());
+        stringBuilder.append("\n");
+        stringBuilder.append("\n");
+
+        if (appointmentData.getCheckInLocation() == null) {
+            stringBuilder.append("CheckInLocation : User has not checked in");
+            stringBuilder.append("\n");
+            stringBuilder.append("\n");
+
+        } else {
+            stringBuilder.append("CheckInLocation :" + appointmentData.getCheckInLocation().getAddress());
+            stringBuilder.append("\n");
+            stringBuilder.append("\n");
+
+        }
+        if (appointmentData.getCheckOutLocation() == null) {
+            stringBuilder.append("CheckOutLocation :User has not checked out");
+            stringBuilder.append("\n");
+            stringBuilder.append("\n");
+
+        } else {
+            stringBuilder.append("CheckOutLocation :" + appointmentData.getCheckOutLocation().getAddress());
+            stringBuilder.append("\n");
+            stringBuilder.append("\n");
+
+        }
+
+        stringBuilder.append("Expected Location to check in and out :" + appointmentData.getDestinationLocation());
+        stringBuilder.append("\n");
+
+
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
-                .setTitle(locationData.getAddress())
+                .setTitle(appointmentData.getEmail())
                 .setMessage(stringBuilder.toString())
                 .setBackground(getDrawable(R.drawable.button_bg))
                 .setPositiveButton("dismiss", new DialogInterface.OnClickListener() {

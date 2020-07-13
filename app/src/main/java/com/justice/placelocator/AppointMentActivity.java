@@ -1,6 +1,7 @@
 package com.justice.placelocator;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -9,8 +10,11 @@ import androidx.recyclerview.widget.RecyclerView;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.TextView;
 
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.firebase.ui.firestore.SnapshotParser;
@@ -22,11 +26,12 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 
-import java.text.SimpleDateFormat;
-
 import es.dmoral.toasty.Toasty;
 
-public class AppointMentActivity extends AppCompatActivity implements AppointmentAdapter.ItemClicked {
+import static com.justice.placelocator.MainActivity.APPOINTMENTS;
+import static com.justice.placelocator.MainActivity.PERSONAL_APPOINTMENTS;
+
+public class AppointMentActivity extends AppCompatActivity implements AppointmentAdapter.ItemClicked, CustomDialogAdapter.ItemClicked {
 
     private FirebaseAuth firebaseAuth = FirebaseAuth.getInstance();
     private FirebaseFirestore firebaseFirestore = FirebaseFirestore.getInstance();
@@ -114,16 +119,15 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
 
     private void setUpRecyclerView() {
         recyclerView = findViewById(R.id.recyclerView);
-        Query query = firebaseFirestore.collection("appointments").orderBy("expectedFromTime", Query.Direction.DESCENDING);
-        FirestoreRecyclerOptions<AppointmentData> firestoreRecyclerOptions = new FirestoreRecyclerOptions.Builder<AppointmentData>().setQuery(query,
-                new SnapshotParser<AppointmentData>() {
+        Query query = firebaseFirestore.collection(APPOINTMENTS);
+        FirestoreRecyclerOptions<Appointment> firestoreRecyclerOptions = new FirestoreRecyclerOptions.Builder<Appointment>().setQuery(query,
+                new SnapshotParser<Appointment>() {
                     @NonNull
                     @Override
-                    public AppointmentData parseSnapshot(@NonNull DocumentSnapshot snapshot) {
+                    public Appointment parseSnapshot(@NonNull DocumentSnapshot snapshot) {
 
-                        AppointmentData appointmentData = snapshot.toObject(AppointmentData.class);
-                        appointmentData.setId(snapshot.getId());
-                        return appointmentData;
+                        Appointment appointment = snapshot.toObject(Appointment.class);
+                        return appointment;
                     }
                 }).setLifecycleOwner(AppointMentActivity.this).build();
 
@@ -165,14 +169,8 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
 
 
     @Override
-    public void itemClickedDocumentSnapshot(DocumentSnapshot document) {
-        MainActivity.documentSnapshot = document;
-        startActivity(new Intent(this, MapsActivity.class));
-        overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
-    }
+    public void itemOnDialogClicked(DocumentSnapshot document) {
 
-    @Override
-    public void itemLongClicked(DocumentSnapshot document) {
         AppointmentData appointmentData = document.toObject(AppointmentData.class);
 
         StringBuilder stringBuilder = new StringBuilder();
@@ -246,7 +244,59 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
                     }
                 });
         builder.show();
+    }
 
+    @Override
+    public void itemClickedDocumentSnapshot(DocumentSnapshot document) {
+        Appointment appointment = document.toObject(Appointment.class);
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
+        builder.setBackground(getDrawable(R.drawable.recycler_view_dialog_bg));
+        builder.setPositiveButton("dismiss", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+
+        LayoutInflater inflater = getLayoutInflater();
+        View dialogView = (View) inflater.inflate(R.layout.custom_alert_dialog, null);
+        builder.setView(dialogView);
+        TextView headerTextView = dialogView.findViewById(R.id.headerTextView);
+        headerTextView.setText("hello my friend");
+
+        RecyclerView rv = (RecyclerView) dialogView.findViewById(R.id.rv);
+
+        Query query = firebaseFirestore.collection(APPOINTMENTS).document(appointment.getId()).collection(PERSONAL_APPOINTMENTS).orderBy("expectedFromTime", Query.Direction.DESCENDING);
+        FirestoreRecyclerOptions<AppointmentData> firestoreRecyclerOptions = new FirestoreRecyclerOptions.Builder<AppointmentData>().setQuery(query,
+                new SnapshotParser<AppointmentData>() {
+                    @NonNull
+                    @Override
+                    public AppointmentData parseSnapshot(@NonNull DocumentSnapshot snapshot) {
+
+                        AppointmentData appointmentData = snapshot.toObject(AppointmentData.class);
+                        appointmentData.setId(snapshot.getId());
+                        return appointmentData;
+                    }
+                }).setLifecycleOwner(AppointMentActivity.this).build();
+
+
+        CustomDialogAdapter dialogAdapter = new CustomDialogAdapter(AppointMentActivity.this, firestoreRecyclerOptions);
+        rv.setLayoutManager(new LinearLayoutManager(this));
+        rv.setAdapter(dialogAdapter);
+
+
+        AlertDialog dialog = builder.create();
+
+        dialog.show();
+
+
+///////////previous code///////
+        /**
+         *    MainActivity.documentSnapshot = document;
+         *         startActivity(new Intent(this, MapsActivity.class));
+         *         overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+         */
     }
 
 

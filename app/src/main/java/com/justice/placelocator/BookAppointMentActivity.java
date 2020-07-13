@@ -19,10 +19,14 @@ import android.widget.TimePicker;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 
 import es.dmoral.toasty.Toasty;
 
@@ -38,6 +42,7 @@ public class BookAppointMentActivity extends AppCompatActivity implements DatePi
     private ProgressDialog progressDialog;
 
     private FirebaseFirestore firebaseFirestore = FirebaseFirestore.getInstance();
+    private FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,7 +98,7 @@ public class BookAppointMentActivity extends AppCompatActivity implements DatePi
 
     private void sendDataToDatabase() {
 
-        AppointmentData appointmentData = new AppointmentData();
+        final AppointmentData appointmentData = new AppointmentData();
         appointmentData.setExpectedFromTime(fromCalender.getTime());
         appointmentData.setExpectToTime(toCalender.getTime());
         appointmentData.setDestinationLocation(destinationEdtTxt.getText().toString());
@@ -101,9 +106,29 @@ public class BookAppointMentActivity extends AppCompatActivity implements DatePi
         progressDialog.setTitle("booking appointment...");
         progressDialog.setCancelable(false);
         progressDialog.show();
-        firebaseFirestore.collection("appointments").document(FirebaseAuth.getInstance().getUid()).set(appointmentData).addOnCompleteListener(new OnCompleteListener<Void>() {
+
+        Appointment appointment=new Appointment();
+        appointment.setEmail(currentUser.getEmail());
+        appointment.setId(currentUser.getUid());
+
+        firebaseFirestore.collection(MainActivity.APPOINTMENTS).document(currentUser.getUid()).set(appointment).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    setTheAppointment(appointmentData);
+                } else {
+                    Toasty.error(BookAppointMentActivity.this, "Error: " + task.getException().getMessage()).show();
+                }
+            }
+        });
+
+
+    }
+
+    private void setTheAppointment(AppointmentData appointmentData) {
+        firebaseFirestore.collection(MainActivity.APPOINTMENTS).document(currentUser.getUid()).collection(MainActivity.PERSONAL_APPOINTMENTS).add(appointmentData).addOnCompleteListener(new OnCompleteListener<DocumentReference>() {
+            @Override
+            public void onComplete(@NonNull Task<DocumentReference> task) {
                 if (task.isSuccessful()) {
                     Toasty.success(BookAppointMentActivity.this, "Appointment booked successfully").show();
                     onBackPressed();
@@ -113,6 +138,7 @@ public class BookAppointMentActivity extends AppCompatActivity implements DatePi
                 progressDialog.dismiss();
             }
         });
+
     }
 
     private boolean fieldsAreEmpty() {

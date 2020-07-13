@@ -16,14 +16,14 @@ import com.google.firebase.firestore.DocumentSnapshot;
 
 import java.text.SimpleDateFormat;
 
-public class MainAdapter extends FirestoreRecyclerAdapter<AppointmentData, MainAdapter.ViewHolder> {
+public class CustomDialogAdapter extends FirestoreRecyclerAdapter<AppointmentData, CustomDialogAdapter.ViewHolder> {
 
     private Context context;
 
     private ItemClicked itemClicked;
 
 
-    public MainAdapter(Context context, @NonNull FirestoreRecyclerOptions<AppointmentData> options) {
+    public CustomDialogAdapter(Context context, @NonNull FirestoreRecyclerOptions<AppointmentData> options) {
         super(options);
         this.context = context;
         itemClicked = (ItemClicked) context;
@@ -61,7 +61,7 @@ public class MainAdapter extends FirestoreRecyclerAdapter<AppointmentData, MainA
     }
 
 
-    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener {
+    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
         private TextView emailTxtView, destinationTxtView, fromTxtView, toTxtView;
 
         public ViewHolder(@NonNull View v) {
@@ -72,31 +72,18 @@ public class MainAdapter extends FirestoreRecyclerAdapter<AppointmentData, MainA
             toTxtView = v.findViewById(R.id.toTxtView);
 
             v.setOnClickListener(this);
-            v.setOnLongClickListener(this);
         }
 
         @Override
         public void onClick(View v) {
-            DocumentSnapshot documentSnapshot = getSnapshots().getSnapshot(getAdapterPosition());
-            AllData.currentLocation = documentSnapshot;
-            v.setBackground(context.getDrawable(R.drawable.button_bg));
-            itemClicked.checkIfUserHasCheckedIn(documentSnapshot);
-            //     itemClicked.itemClickedDocumentSnapshot(getSnapshots().getSnapshot(getAdapterPosition()));
+            itemClicked.itemOnDialogClicked(getSnapshots().getSnapshot(getAdapterPosition()));
         }
 
-        @Override
-        public boolean onLongClick(View v) {
-            itemClicked.itemLongClicked(getSnapshots().getSnapshot(getAdapterPosition()));
-            return true;
-        }
+
     }
 
     public interface ItemClicked {
-        void itemClickedDocumentSnapshot(DocumentSnapshot document);
-
-        void checkIfUserHasCheckedIn(DocumentSnapshot result);
-
-        void itemLongClicked(DocumentSnapshot document);
+        void itemOnDialogClicked(DocumentSnapshot document);
 
     }
 }

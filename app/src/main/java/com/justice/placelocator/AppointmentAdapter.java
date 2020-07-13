@@ -12,18 +12,21 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
 
-import java.text.SimpleDateFormat;
+import es.dmoral.toasty.Toasty;
 
-public class AppointmentAdapter extends FirestoreRecyclerAdapter<AppointmentData, AppointmentAdapter.ViewHolder> {
+public class AppointmentAdapter extends FirestoreRecyclerAdapter<Appointment, AppointmentAdapter.ViewHolder> {
 
     private Context context;
 
     private ItemClicked itemClicked;
 
 
-    public AppointmentAdapter(Context context, @NonNull FirestoreRecyclerOptions<AppointmentData> options) {
+    public AppointmentAdapter(Context context, @NonNull FirestoreRecyclerOptions<Appointment> options) {
         super(options);
         this.context = context;
         itemClicked = (ItemClicked) context;
@@ -31,22 +34,22 @@ public class AppointmentAdapter extends FirestoreRecyclerAdapter<AppointmentData
     }
 
     @Override
-    protected void onBindViewHolder(@NonNull ViewHolder holder, int position, @NonNull AppointmentData model) {
-        if (model.getExpectedFromTime() != null) {
-            String fromTime = new SimpleDateFormat("HH:mm  dd/MM/yyyy").format(model.getExpectedFromTime());
-            String finalTime = "From:   " + fromTime ;
-            holder.fromTxtView.setText(finalTime);
-
-        }
-        if (model.getExpectToTime() != null) {
-            String toTime = new SimpleDateFormat("HH:mm  dd/MM/yyyy").format(model.getExpectToTime());
-            String finalTime = "To:   " + toTime ;
-            holder.toTxtView.setText(finalTime);
-
-        }
-        //   String time="2:34 pm";
+    protected void onBindViewHolder(@NonNull final ViewHolder holder, int position, @NonNull final Appointment model) {
         holder.emailTxtView.setText(model.getEmail());
-        holder.destinationTxtView.setText(model.getDestinationLocation());
+
+        ///////getting number of appointments for each user//////////
+        getSnapshots().getSnapshot(position).getReference().collection(MainActivity.PERSONAL_APPOINTMENTS).get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
+            @Override
+            public void onComplete(@NonNull Task<QuerySnapshot> task) {
+                if (task.isSuccessful()) {
+                    holder.numberOfAppointmentsTextView.setText(task.getResult().size() + " appointments");
+
+                } else {
+                    Toasty.error(context, "Error: " + task.getException().getMessage()).show();
+                }
+            }
+        });
+
 
     }
 
@@ -54,25 +57,23 @@ public class AppointmentAdapter extends FirestoreRecyclerAdapter<AppointmentData
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.appointment_item, parent, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.appointment_main_item, parent, false);
         ViewHolder viewHolder = new ViewHolder(view);
         return viewHolder;
 
     }
 
 
-    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener {
-        private TextView emailTxtView, destinationTxtView, fromTxtView, toTxtView;
+    public class ViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
+        private TextView emailTxtView, numberOfAppointmentsTextView;
 
         public ViewHolder(@NonNull View v) {
             super(v);
             emailTxtView = v.findViewById(R.id.emailTxtView);
-            destinationTxtView = v.findViewById(R.id.destinationTxtView);
-            fromTxtView = v.findViewById(R.id.fromTxtView);
-            toTxtView = v.findViewById(R.id.toTxtView);
+            numberOfAppointmentsTextView = v.findViewById(R.id.numberOfAppointmentTxtView);
 
             v.setOnClickListener(this);
-            v.setOnLongClickListener(this);
+            //        v.setOnLongClickListener(this);
         }
 
         @Override
@@ -80,17 +81,12 @@ public class AppointmentAdapter extends FirestoreRecyclerAdapter<AppointmentData
             itemClicked.itemClickedDocumentSnapshot(getSnapshots().getSnapshot(getAdapterPosition()));
         }
 
-        @Override
-        public boolean onLongClick(View v) {
-            itemClicked.itemLongClicked(getSnapshots().getSnapshot(getAdapterPosition()));
-            return true;
-        }
     }
 
     public interface ItemClicked {
         void itemClickedDocumentSnapshot(DocumentSnapshot document);
 
-        void itemLongClicked(DocumentSnapshot document);
+
 
     }
 }
