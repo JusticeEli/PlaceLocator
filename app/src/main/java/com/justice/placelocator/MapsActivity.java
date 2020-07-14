@@ -11,6 +11,8 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import es.dmoral.toasty.Toasty;
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
@@ -39,6 +41,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
      */
     @Override
     public void onMapReady(GoogleMap googleMap) {
+        if (appointmentData.getCheckInLocation()==null||appointmentData.getCheckOutLocation()==null){
+            Toasty.error(this,"checkIn and Checkout must not be equal to null").show();
+            onBackPressed();
+        }
         mMap = googleMap;
 
         // Add a marker in Sydney and move the camera

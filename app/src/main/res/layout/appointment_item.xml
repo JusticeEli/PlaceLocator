@@ -14,11 +14,14 @@
 
 
     <LinearLayout
+        android:id="@+id/backgroundLinearLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@android:color/darker_gray"
-        android:orientation="vertical"
+        android:background="@drawable/main_bg"
+       android:orientation="vertical"
         android:padding="10dp">
+
+        >
 
 
         <LinearLayout

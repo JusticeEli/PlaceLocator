@@ -42,8 +42,7 @@ public class AppointmentAdapter extends FirestoreRecyclerAdapter<Appointment, Ap
             @Override
             public void onComplete(@NonNull Task<QuerySnapshot> task) {
                 if (task.isSuccessful()) {
-                    holder.numberOfAppointmentsTextView.setText(task.getResult().size() + " appointments");
-
+                    holder.numberOfAppointmentsTextView.setText(task.getResult().size() + "");
                 } else {
                     Toasty.error(context, "Error: " + task.getException().getMessage()).show();
                 }

@@ -19,7 +19,9 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity android:name=".AppointMentActivity"></activity>
-        <activity android:name=".BookAppointMentActivity" />
+        <activity
+            android:name=".BookAppointMentActivity"
+            android:launchMode="singleTop" />
         <activity android:name=".LoginActivity" />
         <activity android:name=".RegisterActivity" />
         <!--

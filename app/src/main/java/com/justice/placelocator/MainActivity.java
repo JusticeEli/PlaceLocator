@@ -21,6 +21,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.core.app.ActivityCompat;
@@ -34,6 +35,8 @@ import com.google.android.gms.dynamic.IFragmentWrapper;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -56,9 +59,11 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
     private static final float LOCATION_REFRESH_DISTANCE = 0;
 
     private static final int LOCATION_PERMISSION = 3;
+    private static final int NO_APPOINTMENTS = 8;
     private CoordinatorLayout coordinatorLayout;
     private Button checkInBtn;
     private Button checkOutBtn;
+    private ExtendedFloatingActionButton fob;
     private RecyclerView recyclerView;
     private MainAdapter adapter;
     private LocationManager locationManager;
@@ -79,10 +84,10 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         initWidgets();
+        setTitle("My appointments");
         setOnClickListeners();
         networkConnectionIsPresent();
         checkIfUserHasLoggedIn_andHasBookedAnAppointment();
-        setUpSwipeListener();
     }
 
     private void checkIfUserHasLoggedIn_andHasBookedAnAppointment() {
@@ -90,7 +95,6 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
             startActivity(new Intent(MainActivity.this, LoginActivity.class));
             finish();
         } else {
-            setTitle(firebaseAuth.getCurrentUser().getEmail());
             ///////////// checks if user has booked an appointment so we can direct him to book appointment first before checkIn
             checkIfUserHasBookedAnAppointment();
 
@@ -175,7 +179,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         checkInBtn = findViewById(R.id.checkInBtn);
         checkOutBtn = findViewById(R.id.checkOutBtn);
         progressDialog = new ProgressDialog(this);
-
+        fob = findViewById(R.id.fob);
     }
 
     private void setOnClickListeners() {
@@ -191,6 +195,13 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
             public void onClick(View v) {
                 checkIn = false;
                 checkOutBtnClicked();
+
+            }
+        });
+        fob.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this, BookAppointMentActivity.class));
 
             }
         });
@@ -379,7 +390,8 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
                                     @Override
                                     public void onDismissed(Snackbar transientBottomBar, int event) {
                                         super.onDismissed(transientBottomBar, event);
-                                        startActivity(new Intent(MainActivity.this, BookAppointMentActivity.class));
+                                        Intent intent = new Intent(MainActivity.this, BookAppointMentActivity.class);
+                                        startActivityForResult(intent, NO_APPOINTMENTS);
 
                                     }
                                 }).show();
@@ -393,6 +405,13 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         });
 
 
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        //////if previously there was no any appointment in the database////////////
+        setUpRecyclerViewForPersonalAppointments();
     }
 
     private void setUpRecyclerViewForPersonalAppointments() {
@@ -414,7 +433,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
         adapter = new MainAdapter(this, firestoreRecyclerOptions);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
-
+        setUpSwipeListener();
     }
 
     public void checkIfUserHasCheckedIn(DocumentSnapshot result) {
@@ -460,9 +479,13 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
     @Override
     public void itemClickedDocumentSnapshot(DocumentSnapshot document) {
-        documentSnapshot = document;
-        startActivity(new Intent(this, MapsActivity.class));
-        overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+
+////////sends user to the map////////////////
+        /**
+         *    documentSnapshot = document;
+         *         startActivity(new Intent(this, MapsActivity.class));
+         *         overridePendingTransition(R.anim.fade_in, R.anim.fade_out);
+         */
 
     }
 
@@ -557,6 +580,7 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
 
             @Override
             public void onSwiped(@NonNull final RecyclerView.ViewHolder viewHolder, int direction) {
+
                 deleteAppointmentFromDatabase(viewHolder.getAdapterPosition());
 
             }
@@ -569,8 +593,12 @@ public class MainActivity extends AppCompatActivity implements MyLocationListene
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()) {
                     Toasty.success(MainActivity.this, "deletion success").show();
+                    //to prevent user from checkin or checkout from an appoint he has deleted we set the checkin and checkout button to invisible//
+                    checkInBtn.setVisibility(View.GONE);
+                    checkOutBtn.setVisibility(View.GONE);
+
                 } else {
-                    Toasty.error(MainActivity.this, "Error: "+task.getException().getMessage()).show();
+                    Toasty.error(MainActivity.this, "Error: " + task.getException().getMessage()).show();
                 }
             }
         });

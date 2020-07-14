@@ -9,6 +9,7 @@ import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
@@ -54,6 +55,11 @@ public class BookAppointMentActivity extends AppCompatActivity implements DatePi
         setOnClickListeners();
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main_menu, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
@@ -75,12 +81,13 @@ public class BookAppointMentActivity extends AppCompatActivity implements DatePi
 
     private void logoutUser() {
         FirebaseAuth.getInstance().signOut();
-        Intent intent=new Intent(this, LoginActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
         overridePendingTransition(R.anim.slide_in_from_left, R.anim.slide_out_to_right);
 
     }
+
     private void setOnClickListeners() {
 
         fromEdtTxt.setOnClickListener(new View.OnClickListener() {
@@ -136,7 +143,7 @@ public class BookAppointMentActivity extends AppCompatActivity implements DatePi
         progressDialog.setCancelable(false);
         progressDialog.show();
 
-        Appointment appointment=new Appointment();
+        Appointment appointment = new Appointment();
         appointment.setEmail(currentUser.getEmail());
         appointment.setId(currentUser.getUid());
 

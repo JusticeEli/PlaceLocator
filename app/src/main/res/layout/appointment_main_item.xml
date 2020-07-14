@@ -19,7 +19,6 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:text="Email: "
             android:textColor="@color/colorAccent" />
 
@@ -27,13 +26,12 @@
             android:id="@+id/emailTxtView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="3"
             android:text="justice@gmail.com" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:layout_marginLeft="5dp"
             android:text="Appointments: "
             android:textColor="@color/colorAccent" />
 
@@ -41,8 +39,7 @@
             android:id="@+id/numberOfAppointmentTxtView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="50dp"
-            android:layout_weight="2"
+            android:layout_marginLeft="5dp"
             android:text="10 " />
 
     </LinearLayout>

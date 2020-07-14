@@ -7,7 +7,7 @@
         app:showAsAction="never" />
     <item
         android:id="@+id/appointmentItem"
-        android:title="view all appointments"
+        android:title="supervisor"
         app:showAsAction="never" />
     <item
         android:id="@+id/logoutItem"

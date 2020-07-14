@@ -41,13 +41,14 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
     private FirebaseFirestore firebaseFirestore = FirebaseFirestore.getInstance();
     private AppointmentAdapter adapter;
     private RecyclerView recyclerView;
+    private static final String TAG = "AppointMentActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_appoint_ment);
         setUpRecyclerView();
-        setTitle("Supervisor");
+        setTitle("All appointments booked by clients");
     }
 
     @Override
@@ -80,25 +81,29 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
 
     private void logoutUser() {
         firebaseAuth.signOut();
-        Intent intent=new Intent(this, LoginActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK|Intent.FLAG_ACTIVITY_NEW_TASK);
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
         overridePendingTransition(R.anim.slide_in_from_left, R.anim.slide_out_to_right);
 
     }
 
     private void deleteAllPlaces() {
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
-                .setIcon(R.drawable.ic_delete)
-                .setBackground(getDrawable(R.drawable.button_bg))
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Delete All", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        deleteAll();
-                    }
-                });
-        builder.show();
+        Toasty.error(this, "functionality not yet implemented").show();
+       /**
+         *    MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+         *                 .setIcon(R.drawable.ic_delete)
+         *                 .setBackground(getDrawable(R.drawable.button_bg))
+         *                 .setNegativeButton("Cancel", null)
+         *                 .setPositiveButton("Delete All", new DialogInterface.OnClickListener() {
+         *                     @Override
+         *                     public void onClick(DialogInterface dialog, int which) {
+         *                         deleteAll();
+         *                     }
+         *                 });
+         *         builder.show();
+         */
+
     }
 
     private void deleteAll() {
@@ -265,7 +270,7 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
     public void approveAppointment(DocumentSnapshot document, final boolean approved) {
         Map<String, Object> map = new HashMap<>();
         map.put("approved", approved);
-        document.getReference().set(approved, SetOptions.merge()).addOnCompleteListener(new OnCompleteListener<Void>() {
+        document.getReference().set(map, SetOptions.merge()).addOnCompleteListener(new OnCompleteListener<Void>() {
             @Override
             public void onComplete(@NonNull Task<Void> task) {
                 if (task.isSuccessful()) {
@@ -302,8 +307,7 @@ public class AppointMentActivity extends AppCompatActivity implements Appointmen
         LayoutInflater inflater = getLayoutInflater();
         View dialogView = (View) inflater.inflate(R.layout.custom_alert_dialog, null);
         builder.setView(dialogView);
-        TextView headerTextView = dialogView.findViewById(R.id.headerTextView);
-        headerTextView.setText("Appointments booked by " + appointment.getEmail());
+        builder.setTitle("Appointments booked by " + appointment.getEmail());
 
         RecyclerView rv = (RecyclerView) dialogView.findViewById(R.id.rv);
 

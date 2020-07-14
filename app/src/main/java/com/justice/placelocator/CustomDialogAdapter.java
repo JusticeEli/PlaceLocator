@@ -36,20 +36,25 @@ public class CustomDialogAdapter extends FirestoreRecyclerAdapter<AppointmentDat
     protected void onBindViewHolder(@NonNull ViewHolder holder, int position, @NonNull AppointmentData model) {
         if (model.getExpectedFromTime() != null) {
             String fromTime = new SimpleDateFormat("HH:mm  dd/MM/yyyy").format(model.getExpectedFromTime());
-            String finalTime = "From:   " + fromTime;
-            holder.fromTxtView.setText(finalTime);
+            holder.fromTxtView.setText(fromTime);
 
         }
         if (model.getExpectToTime() != null) {
             String toTime = new SimpleDateFormat("HH:mm  dd/MM/yyyy").format(model.getExpectToTime());
-            String finalTime = "To:   " + toTime;
-            holder.toTxtView.setText(finalTime);
+            holder.toTxtView.setText(toTime);
 
         }
         //   String time="2:34 pm";
         holder.emailTxtView.setText(model.getEmail());
         holder.destinationTxtView.setText(model.getDestinationLocation());
         holder.approvedCheckbox.setChecked(model.isApproved());
+        if (model.isApproved()) {
+            holder.approvedCheckbox.setText("approved");
+
+        } else {
+            holder.approvedCheckbox.setText("not approved");
+
+        }
     }
 
 
@@ -88,7 +93,13 @@ public class CustomDialogAdapter extends FirestoreRecyclerAdapter<AppointmentDat
         @Override
         public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
             itemClicked.approveAppointment(getSnapshots().getSnapshot(getAdapterPosition()), isChecked);
+            if (isChecked) {
+                approvedCheckbox.setText("approved");
 
+            } else {
+                approvedCheckbox.setText("not approved");
+
+            }
         }
 
         @Override
@@ -100,7 +111,9 @@ public class CustomDialogAdapter extends FirestoreRecyclerAdapter<AppointmentDat
 
     public interface ItemClicked {
         void itemOnDialogClicked(DocumentSnapshot document);
+
         void itemOnDialogLongClicked(DocumentSnapshot document);
+
         void approveAppointment(DocumentSnapshot document, boolean approved);
 
     }
